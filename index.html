@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Schedule Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F3F4F6;
+        }
+
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+
+        .active-day {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%) !important;
+            color: white !important;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+
+        .task-done {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .day-btn.active {
+            background-color: #6366f1 !important;
+            color: white !important;
+            border-color: #4f46e5 !important;
+        }
+
+        .badge-goal {
+            background-color: #e0e7ff;
+            color: #4338ca;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .badge-sched {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .dynamic-bg {
+            transition: background-image 0.5s ease;
+            background-size: cover;
+            background-position: center;
+        }
+
+        #dropZone.drag-over {
+            border-color: #6366f1;
+            background-color: rgba(99, 102, 241, 0.1);
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen relative overflow-x-hidden">
+
+    <header
+        class="max-w-md mx-auto md:max-w-4xl w-full bg-white/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center shadow-sm">
+        <button onclick="toggleSidebar()" class="text-gray-600 hover:text-indigo-600 transition text-xl"><i
+                class="fas fa-bars"></i></button>
+        <h2 class="ml-4 font-bold text-gray-800 tracking-tight">PLANNER</h2>
+    </header>
+
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-50 hidden"></div>
+    <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white z-50 shadow-2xl sidebar-hidden p-6">
+        <div class="flex justify-between items-center mb-10"><span
+                class="text-xl font-bold text-indigo-600">Menu</span><button onclick="toggleSidebar()"
+                class="text-gray-400"><i class="fas fa-times"></i></button></div>
+        <nav class="space-y-2">
+            <button onclick="showPage('main')"
+                class="w-full flex items-center space-x-4 p-3 rounded-xl hover:bg-indigo-50 text-gray-700 transition"><i
+                    class="fas fa-calendar-alt w-6"></i><span class="font-medium">메인 플래너</span></button>
+            <button onclick="showPage('goals')"
+                class="w-full flex items-center space-x-4 p-3 rounded-xl hover:bg-indigo-50 text-gray-700 transition"><i
+                    class="fas fa-bullseye w-6 text-red-500"></i><span class="font-medium">일정/목표 등록</span></button>
+            <button onclick="showPage('settings')"
+                class="w-full flex items-center space-x-4 p-3 rounded-xl hover:bg-indigo-50 text-gray-700 transition"><i
+                    class="fas fa-cog w-6 text-gray-500"></i><span class="font-medium">설정</span></button>
+        </nav>
+    </div>
+
+    <main id="mainPage"
+        class="max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col md:max-w-4xl md:flex-row relative">
+        <div class="w-full md:w-1/2 p-6 bg-white border-r border-gray-100 flex flex-col">
+            <div class="flex-grow">
+                <div class="flex items-center justify-center mb-2">
+                    <div class="flex space-x-6 items-center overflow-hidden">
+                        <span id="prevMonthLabel" onclick="changeMonth(-1)"
+                            class="text-[10px] font-medium text-gray-200 uppercase tracking-wider cursor-pointer hover:text-indigo-400"></span>
+                        <h1 class="text-lg font-bold text-gray-800" id="currentMonth"></h1>
+                        <span id="nextMonthLabel" onclick="changeMonth(1)"
+                            class="text-[10px] font-medium text-gray-200 uppercase tracking-wider cursor-pointer hover:text-indigo-400"></span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center mb-8 mt-4">
+                    <p class="text-sm text-gray-400">오늘의 일정을 체크하세요</p>
+                    <button onclick="showPage('goals')"
+                        class="w-12 h-12 flex items-center justify-center bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition"><i
+                            class="fas fa-plus"></i></button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-sm mb-4 font-semibold text-gray-400">
+                    <div>Sun</div>
+                    <div>Mon</div>
+                    <div>Tue</div>
+                    <div>Wed</div>
+                    <div>Thu</div>
+                    <div>Fri</div>
+                    <div>Sat</div>
+                </div>
+                <div class="grid grid-cols-7 gap-y-2 text-center" id="calendarDays"></div>
+            </div>
+            <div class="mt-10 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div class="flex justify-between items-end mb-2">
+                    <div>
+                        <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Monthly Progress</p>
+                        <h4 class="text-sm font-bold text-gray-700">목표 달성률</h4>
+                    </div>
+                    <span id="mainGoalPercent" class="text-lg font-bold text-indigo-600">0%</span>
+                </div>
+                <div class="w-full bg-indigo-200 rounded-full h-2 overflow-hidden">
+                    <div id="mainGoalBar" class="bg-indigo-600 h-full transition-all duration-500" style="width: 0%">
+                    </div>
+                </div>
+                <p id="mainGoalSummary" class="text-[10px] text-gray-500 mt-2">등록된 목표가 없습니다.</p>
+            </div>
+        </div>
+
+        <div id="rightPanel"
+            class="w-full md:w-1/2 p-6 text-gray-800 overflow-y-auto no-scrollbar h-[50vh] md:h-auto dynamic-bg"
+            style="background-image: linear-gradient(to bottom, #f4f4b0 0%, #f4e8ec 50%, #c4d8f4 100%);">
+            <div class="mb-8"><span class="text-5xl font-light text-indigo-600" id="selectedDayLabel"></span>
+                <p class="text-xl font-semibold opacity-80" id="selectedMonthYearLabel"></p>
+            </div>
+            <div class="space-y-4" id="taskList"></div>
+            <div class="mt-8 pt-6 border-t border-black/10">
+                <p class="text-xs text-gray-500 text-center" id="taskCountText"></p>
+            </div>
+        </div>
+    </main>
+
+    <section id="settingsPage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl p-6 md:max-w-4xl">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Settings</h1>
+        <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+            <h3 class="font-bold text-gray-700 mb-4">패널 배경 커스텀</h3>
+            <p class="text-xs text-gray-500 mb-6">이미지를 드래그하거나 업로드하면 주요 색상 5개를 추출해 그라데이션을 만듭니다.</p>
+            <div id="dropZone"
+                class="flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 rounded-2xl p-10 bg-indigo-50/30 transition-all duration-300">
+                <input type="file" id="imageInput" accept="image/*" class="hidden"
+                    onchange="processImage(this.files[0])">
+                <label for="imageInput" class="cursor-pointer flex flex-col items-center">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-indigo-400 mb-3"></i>
+                    <span class="text-sm font-semibold text-indigo-600">이미지를 이리로 끌어오거나 클릭하세요</span>
+                    <p class="text-[10px] text-gray-400 mt-2">JPG, PNG 지원 (HEIC 제외)</p>
+                </label>
+            </div>
+            <div id="colorPreview" class="mt-8 hidden">
+                <p class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-widest">Extracted Palette</p>
+                <div id="palette"
+                    class="flex h-12 w-full rounded-xl overflow-hidden shadow-inner border border-gray-100"></div>
+            </div>
+            <button onclick="resetBackground()"
+                class="mt-10 w-full py-3 rounded-xl bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition">기본
+                배경으로 초기화</button>
+        </div>
+    </section>
+
+    <section id="goalPage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl p-6 md:max-w-4xl">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Add Schedule</h1>
+        </div>
+        <div class="bg-indigo-50/50 rounded-3xl p-6 mb-8 border border-indigo-100">
+            <div class="grid grid-cols-1 gap-4">
+                <div class="flex p-1 bg-gray-200/50 rounded-xl">
+                    <button id="typeGoal" onclick="setType(true)"
+                        class="flex-1 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-indigo-600">🎯
+                        목표</button>
+                    <button id="typeSched" onclick="setType(false)"
+                        class="flex-1 py-2 rounded-lg text-sm font-bold text-gray-500">📅 일정</button>
+                </div>
+                <div class="flex space-x-2">
+                    <input type="text" id="goalEmoji" placeholder="📍"
+                        class="w-14 bg-white border rounded-xl text-center text-xl outline-none">
+                    <input type="text" id="goalInput" placeholder="내용을 입력하세요"
+                        class="flex-1 bg-white border rounded-xl px-4 py-3 outline-none">
+                </div>
+                <div id="normalDateInputs" class="flex space-x-2"><input type="datetime-local" id="goalStart"
+                        class="flex-1 bg-white border rounded-xl px-3 py-2 text-xs outline-none"></div>
+                <div id="repeatInputs" class="hidden space-y-3">
+                    <div class="flex justify-between gap-1">
+                        <button onclick="toggleDay(0)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="0">일</button>
+                        <button onclick="toggleDay(1)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="1">월</button>
+                        <button onclick="toggleDay(2)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="2">화</button>
+                        <button onclick="toggleDay(3)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="3">수</button>
+                        <button onclick="toggleDay(4)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="4">목</button>
+                        <button onclick="toggleDay(5)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="5">금</button>
+                        <button onclick="toggleDay(6)" class="day-btn flex-1 py-2 text-xs rounded-lg border bg-white"
+                            data-day="6">토</button>
+                    </div>
+                    <input type="time" id="goalTime" value="09:00"
+                        class="w-full bg-white border rounded-xl px-4 py-2 text-sm">
+                </div>
+                <div
+                    class="flex items-center justify-between bg-white/50 p-3 rounded-xl border border-dashed border-indigo-200">
+                    <label class="flex items-center cursor-pointer"><input type="checkbox" id="goalRepeat"
+                            class="hidden peer" onchange="toggleRepeatUI()">
+                        <div
+                            class="w-5 h-5 border-2 border-indigo-400 rounded-md peer-checked:bg-indigo-500 flex items-center justify-center mr-2">
+                            <i class="fas fa-check text-[10px] text-white"></i>
+                        </div><span class="text-sm font-bold text-gray-600">매주 반복</span>
+                    </label>
+                    <button onclick="addGoal()"
+                        class="bg-indigo-600 text-white px-8 py-2 rounded-xl font-bold">등록</button>
+                </div>
+            </div>
+        </div>
+        <div id="goalList" class="space-y-4"></div>
+    </section>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('myTasks')) || {};
+        let goals = JSON.parse(localStorage.getItem('myGoals')) || {};
+        let userBg = localStorage.getItem('userBg') || 'linear-gradient(to bottom, #f4f4b0 0%, #f4e8ec 50%, #c4d8f4 100%)';
+        let selectedDays = [];
+        let isGoalType = true;
+        const today = new Date();
+        let currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        let selectedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        window.onload = () => {
+            document.getElementById('rightPanel').style.backgroundImage = userBg;
+            initDragAndDrop();
+            renderCalendar();
+        };
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('sidebar-hidden');
+            document.getElementById('sidebarOverlay').classList.toggle('hidden');
+        }
+
+        function showPage(page) {
+            document.getElementById('mainPage').classList.toggle('hidden', page !== 'main');
+            document.getElementById('goalPage').classList.toggle('hidden', page !== 'goals');
+            document.getElementById('settingsPage').classList.toggle('hidden', page !== 'settings');
+            if (page === 'goals') renderGoals(); else if (page === 'main') renderCalendar();
+            if (!document.getElementById('sidebar').classList.contains('sidebar-hidden')) toggleSidebar();
+        }
+
+        function initDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+            });
+            dropZone.addEventListener('dragover', () => dropZone.classList.add('drag-over'));
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+            dropZone.addEventListener('drop', (e) => {
+                dropZone.classList.remove('drag-over');
+                const file = e.dataTransfer.files[0];
+                processImage(file);
+            });
+        }
+
+        function processImage(file) {
+            if (!file) return;
+            const fileName = file.name.toLowerCase();
+            if (fileName.endsWith(".heic")) { alert("⚠️ HEIC 형식은 현재 지원되지 않습니다.\nJPG나 PNG 이미지 파일을 사용해 주세요."); return; }
+            if (!file.type.startsWith('image/')) { alert("이미지 파일만 업로드 가능합니다."); return; }
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const img = new Image();
+                img.onload = function () {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    canvas.width = 100; canvas.height = 100;
+                    ctx.drawImage(img, 0, 0, 100, 100);
+                    const samplePoints = [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 50, y: 50 }, { x: 5, y: 95 }, { x: 95, y: 95 }];
+                    const colors = samplePoints.map(p => {
+                        const d = ctx.getImageData(p.x, p.y, 1, 1).data;
+                        return `rgb(${d[0]}, ${d[1]}, ${d[2]})`;
+                    });
+                    applyNewBackground(colors);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyNewBackground(colors) {
+            const gradient = `linear-gradient(to bottom, ${colors[0]}, ${colors[1]}, ${colors[2]}, ${colors[3]}, ${colors[4]})`;
+            userBg = gradient; localStorage.setItem('userBg', gradient);
+            document.getElementById('rightPanel').style.backgroundImage = gradient;
+            const palette = document.getElementById('palette'); palette.innerHTML = '';
+            colors.forEach(c => { const div = document.createElement('div'); div.style.backgroundColor = c; div.className = "flex-1 h-full"; palette.appendChild(div); });
+            document.getElementById('colorPreview').classList.remove('hidden');
+            alert("✨ 배경 색상이 업데이트되었습니다!");
+        }
+
+        function resetBackground() {
+            const defaultBg = 'linear-gradient(to bottom, #f4f4b0 0%, #f4e8ec 50%, #c4d8f4 100%)';
+            userBg = defaultBg; localStorage.setItem('userBg', defaultBg);
+            document.getElementById('rightPanel').style.backgroundImage = defaultBg;
+            document.getElementById('colorPreview').classList.add('hidden');
+            alert("기본 배경으로 초기화되었습니다.");
+        }
+
+        function setType(val) {
+            isGoalType = val;
+            const gBtn = document.getElementById('typeGoal'); const sBtn = document.getElementById('typeSched');
+            if (val) { gBtn.className = "flex-1 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-indigo-600"; sBtn.className = "flex-1 py-2 rounded-lg text-sm font-bold text-gray-500"; }
+            else { sBtn.className = "flex-1 py-2 rounded-lg text-sm font-bold bg-white shadow-sm text-indigo-600"; gBtn.className = "flex-1 py-2 rounded-lg text-sm font-bold text-gray-500"; }
+        }
+        function toggleRepeatUI() { const isRepeat = document.getElementById('goalRepeat').checked; document.getElementById('normalDateInputs').classList.toggle('hidden', isRepeat); document.getElementById('repeatInputs').classList.toggle('hidden', !isRepeat); }
+        function toggleDay(day) { const btn = document.querySelector(`[data-day="${day}"]`); if (selectedDays.includes(day)) { selectedDays = selectedDays.filter(d => d !== day); btn.classList.remove('active'); } else { selectedDays.push(day); btn.classList.add('active'); } }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+            document.getElementById('currentMonth').innerText = `${monthNames[month]} ${year}`;
+            const prevM = new Date(year, month - 1); const nextM = new Date(year, month + 1);
+            document.getElementById('prevMonthLabel').innerText = `${monthNames[prevM.getMonth()].substring(0, 3)} ${prevM.getFullYear()}`;
+            document.getElementById('nextMonthLabel').innerText = `${monthNames[nextM.getMonth()].substring(0, 3)} ${nextM.getFullYear()}`;
+            const calendarDays = document.getElementById('calendarDays'); calendarDays.innerHTML = '';
+            const firstDay = new Date(year, month, 1).getDay(); const lastDate = new Date(year, month + 1, 0).getDate();
+            const lastDatePrev = new Date(year, month, 0).getDate();
+            for (let i = firstDay; i > 0; i--) { const d = document.createElement('div'); d.className = 'calendar-day text-gray-200 text-xs'; d.innerText = lastDatePrev - i + 1; calendarDays.appendChild(d); }
+            for (let i = 1; i <= lastDate; i++) {
+                const d = document.createElement('div'); const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                d.className = `calendar-day hover:bg-indigo-50 rounded-full cursor-pointer text-sm transition relative`; d.innerText = i;
+                if (tasks[dateKey]?.length > 0) { const dot = document.createElement('div'); dot.className = `absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-400`; d.appendChild(dot); }
+                if (i === selectedDate.getDate() && month === selectedDate.getMonth() && year === selectedDate.getFullYear()) d.classList.add('active-day');
+                d.onclick = () => { selectedDate = new Date(year, month, i); renderCalendar(); }; calendarDays.appendChild(d);
+            }
+            updateTaskDisplay(); updateMainGoalProgress();
+        }
+
+        /* --- [중요] 일정을 시간순으로 정렬하여 표시하는 함수 --- */
+        function updateTaskDisplay() {
+            const dateKey = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+            const taskList = document.getElementById('taskList');
+            let currentTasks = tasks[dateKey] || [];
+
+            // 시간순 정렬 (09:00, 14:00 순서대로)
+            currentTasks.sort((a, b) => a.time.localeCompare(b.time));
+
+            taskList.innerHTML = '';
+            document.getElementById('selectedDayLabel').innerText = selectedDate.getDate();
+            document.getElementById('selectedMonthYearLabel').innerText = `${monthNames[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+
+            if (currentTasks.length === 0) {
+                taskList.innerHTML = '<p class="text-gray-400 text-center py-10 opacity-60 italic text-sm">일정이 없습니다.</p>';
+            } else {
+                currentTasks.forEach((task, idx) => {
+                    const item = document.createElement('div');
+                    item.className = "bg-white/60 p-4 rounded-2xl flex items-center justify-between border border-black/5 shadow-sm transition-all";
+                    item.innerHTML = `
+                        <div class="flex items-center space-x-4 cursor-pointer" onclick="toggleTaskStatus('${dateKey}', ${idx})">
+                            <div class="w-6 h-6 border-2 ${task.completed ? 'bg-green-500 border-green-500' : 'border-indigo-500'} rounded-full flex items-center justify-center transition">
+                                ${task.completed ? '<i class="fas fa-check text-[10px] text-white"></i>' : '<div class="w-2 h-2 bg-indigo-500 rounded-full"></div>'}
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-800 ${task.completed ? 'task-done' : ''}">${task.title}</p>
+                                <span class="${task.isGoal ? 'badge-goal' : 'badge-sched'}">${task.isGoal ? '목표' : '일정'}</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-medium text-gray-500">${task.time}</span>
+                            <button onclick="deleteTask('${dateKey}', ${idx})" class="text-gray-300 hover:text-red-500 transition"><i class="fas fa-trash-alt text-xs"></i></button>
+                        </div>`;
+                    taskList.appendChild(item);
+                });
+            }
+            document.getElementById('taskCountText').innerText = `총 ${currentTasks.length}개의 항목이 있습니다.`;
+        }
+
+        function toggleTaskStatus(dateKey, idx) { tasks[dateKey][idx].completed = !tasks[dateKey][idx].completed; localStorage.setItem('myTasks', JSON.stringify(tasks)); renderCalendar(); }
+        function deleteTask(dateKey, idx) { if (!confirm("삭제하시겠습니까?")) return; tasks[dateKey].splice(idx, 1); localStorage.setItem('myTasks', JSON.stringify(tasks)); renderCalendar(); }
+        function updateMainGoalProgress() {
+            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+            let goalTotal = 0; let goalDone = 0;
+            Object.keys(tasks).forEach(dateKey => {
+                const [y, m] = dateKey.split('-').map(Number);
+                if (y === year && m === (month + 1)) { tasks[dateKey].forEach(t => { if (t.isGoal) { goalTotal++; if (t.completed) goalDone++; } }); }
+            });
+            const percent = goalTotal ? Math.round((goalDone / goalTotal) * 100) : 0;
+            document.getElementById('mainGoalPercent').innerText = `${percent}%`;
+            document.getElementById('mainGoalBar').style.width = `${percent}%`;
+            document.getElementById('mainGoalSummary').innerText = goalTotal > 0 ? `이달의 목표 ${goalTotal}개 중 ${goalDone}개 달성` : "등록된 목표가 없습니다.";
+        }
+        function addGoal() {
+            const title = document.getElementById('goalInput').value.trim();
+            const emoji = document.getElementById('goalEmoji').value.trim() || '📍';
+            const isRepeat = document.getElementById('goalRepeat').checked;
+            if (!title) return alert("내용을 입력해주세요!");
+            const year = currentDate.getFullYear(); const month = currentDate.getMonth();
+            const monthKey = `${year}-${month}`;
+            if (isRepeat) {
+                if (selectedDays.length === 0) return alert("반복할 요일을 선택해주세요!");
+                const time = document.getElementById('goalTime').value;
+                const lastDate = new Date(year, month + 1, 0).getDate();
+                for (let d = 1; d <= lastDate; d++) {
+                    const loopDate = new Date(year, month, d);
+                    if (selectedDays.includes(loopDate.getDay())) {
+                        const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        if (!tasks[dateKey]) tasks[dateKey] = [];
+                        tasks[dateKey].push({ title: `${emoji} ${title}`, time: time, completed: false, isGoal: isGoalType });
+                    }
+                }
+            } else {
+                const startVal = document.getElementById('goalStart').value;
+                if (!startVal) return alert("날짜를 선택해주세요!");
+                const dateKey = startVal.split('T')[0]; const time = startVal.split('T')[1] || "09:00";
+                if (!tasks[dateKey]) tasks[dateKey] = [];
+                tasks[dateKey].push({ title: `${emoji} ${title}`, time: time, completed: false, isGoal: isGoalType });
+            }
+            if (!goals[monthKey]) goals[monthKey] = [];
+            goals[monthKey].push({ title, emoji, repeat: isRepeat, isGoal: isGoalType, days: [...selectedDays] });
+            localStorage.setItem('myTasks', JSON.stringify(tasks)); localStorage.setItem('myGoals', JSON.stringify(goals));
+            resetGoalInputs(); showPage('main');
+        }
+        function renderGoals() {
+            const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`;
+            const list = document.getElementById('goalList'); const currentGoals = goals[monthKey] || [];
+            list.innerHTML = '';
+            currentGoals.forEach((g, idx) => {
+                const div = document.createElement('div'); div.className = `p-5 rounded-3xl border bg-white border-gray-100 shadow-sm`;
+                const typeText = g.isGoal ? '🎯 목표' : '📅 일정'; const dayText = g.repeat ? `매주 (${g.days.map(d => ['일', '월', '화', '수', '목', '금', '토'][d]).join(',')})` : '단일 항목';
+                div.innerHTML = `<div class="flex items-start justify-between"><div class="flex space-x-4"><span class="text-2xl">${g.emoji}</span><div><h3 class="font-bold text-gray-800">${g.title}</h3><p class="text-[10px] text-indigo-500 font-bold">${typeText} | ${dayText}</p></div></div><button onclick="deleteGoal(${idx})" class="text-gray-400 p-2 hover:text-red-500"><i class="fas fa-trash"></i></button></div>`;
+                list.appendChild(div);
+            });
+        }
+        function deleteGoal(idx) { const monthKey = `${currentDate.getFullYear()}-${currentDate.getMonth()}`; goals[monthKey].splice(idx, 1); localStorage.setItem('myGoals', JSON.stringify(goals)); renderGoals(); }
+        function resetGoalInputs() { document.getElementById('goalInput').value = ''; document.getElementById('goalEmoji').value = ''; document.getElementById('goalStart').value = ''; document.getElementById('goalRepeat').checked = false; selectedDays = []; setType(true); document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active')); toggleRepeatUI(); }
+        function changeMonth(offset) { currentDate.setMonth(currentDate.getMonth() + offset); renderCalendar(); }
+    </script>
+</body>
+
+</html>
