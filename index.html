@@ -119,7 +119,8 @@
         class="max-w-md mx-auto md:max-w-4xl w-full bg-white/90 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex items-center shadow-sm border-b border-gray-100">
         <button onclick="toggleSidebar()" class="text-gray-800 hover:text-indigo-600 transition text-xl"><i
                 class="fas fa-bars"></i></button>
-        <h2 class="ml-4 font-bold text-gray-900 tracking-tighter text-lg">ADVANCED PLANNER</h2>
+        <h2 id="headerTitle" class="ml-4 font-bold text-gray-900 tracking-tighter text-lg uppercase">ADVANCED PLANNER
+        </h2>
     </header>
 
     <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/40 z-50 hidden"></div>
@@ -178,8 +179,7 @@
                     </div>
                     <div class="w-full bg-indigo-200 rounded-full h-2 overflow-hidden">
                         <div id="mainGoalBar" class="bg-indigo-600 h-full transition-all duration-700"
-                            style="width: 0%">
-                        </div>
+                            style="width: 0%"></div>
                     </div>
                     <p id="mainGoalSummary" class="text-[10px] text-indigo-400 mt-3 font-medium text-center">목표를 등록해
                         보세요!</p>
@@ -292,6 +292,19 @@
 
     <section id="settingsPage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl p-8 md:max-w-4xl">
         <h1 class="text-3xl font-black text-gray-900 mb-8 tracking-tighter uppercase">Settings</h1>
+
+        <div class="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm mb-6">
+            <h3 class="font-bold text-gray-800 mb-2">플래너 타이틀 변경</h3>
+            <p class="text-xs text-gray-400 mb-5">상단 헤더에 표시될 텍스트를 입력하세요 (50자 미만).</p>
+            <div class="flex gap-2">
+                <input type="text" id="titleInput" maxlength="49"
+                    class="flex-1 p-3 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-black transition text-sm"
+                    placeholder="새로운 타이틀 입력">
+                <button onclick="updateTitle()"
+                    class="px-6 py-3 bg-black text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition uppercase tracking-widest">Update</button>
+            </div>
+        </div>
+
         <div class="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm">
             <h3 class="font-bold text-gray-800 mb-2">지능형 배경 그라데이션</h3>
             <p class="text-xs text-gray-400 mb-8 leading-relaxed">이미지를 업로드하면 AI가 주요 색상을 추출하여 패널의 그라데이션 배경을 생성합니다.</p>
@@ -317,6 +330,7 @@
         let tasks = JSON.parse(localStorage.getItem('myTasks')) || {};
         let notes = JSON.parse(localStorage.getItem('myNotes')) || [];
         let userBg = localStorage.getItem('userBg') || 'linear-gradient(to bottom, #ffffff, #f3f4f6)';
+        let userTitle = localStorage.getItem('userTitle') || 'ADVANCED PLANNER'; // 타이틀 추가
         let taskType = 'goal';
         let selectedRepeatDays = [];
         let editingNoteId = null;
@@ -328,10 +342,34 @@
 
         window.onload = () => {
             applyBackground(userBg);
+            applyTitle(userTitle); // 타이틀 적용
             renderCalendar();
             renderNotes();
             document.getElementById('dateInput').valueAsDate = new Date();
         };
+
+        // 타이틀 업데이트 기능
+        function updateTitle() {
+            const input = document.getElementById('titleInput');
+            const newTitle = input.value.trim();
+            if (newTitle.length === 0) {
+                alert("내용을 입력해주세요.");
+                return;
+            }
+            if (newTitle.length >= 50) {
+                alert("50자 미만으로 입력해주세요.");
+                return;
+            }
+            userTitle = newTitle;
+            localStorage.setItem('userTitle', userTitle);
+            applyTitle(userTitle);
+            input.value = "";
+            alert("타이틀이 변경되었습니다.");
+        }
+
+        function applyTitle(text) {
+            document.getElementById('headerTitle').innerText = text;
+        }
 
         // 페이지 전환
         function showPage(page) {
@@ -408,7 +446,6 @@
             document.getElementById('mainGoalSummary').innerText = totalGoals === 0 ? "이달의 목표가 없습니다." : `${totalGoals}개 중 ${completedGoals}개 완료`;
         }
 
-        // --- 일정 추가 기능 ---
         function setTaskType(type) {
             taskType = type;
             document.getElementById('typeGoal').className = type === 'goal' ? 'flex-1 py-3 rounded-lg font-bold transition bg-white shadow-sm text-black' : 'flex-1 py-3 rounded-lg font-bold transition text-gray-400';
@@ -471,7 +508,6 @@
             updateTaskDisplay(); renderCalendar();
         }
 
-        // --- 메모 기능 (조회 및 수정 기능 포함) ---
         function expandEditor(event) {
             const container = document.getElementById('editorContainer');
             container.style.height = '600px';
@@ -546,7 +582,6 @@
 
         function formatDoc(cmd) { document.execCommand(cmd, false, null); document.getElementById('noteInput').focus(); }
 
-        // --- 배경 설정 기능 ---
         function processImage(file) {
             if (!file || !file.type.startsWith('image/')) return;
             const reader = new FileReader();
@@ -579,7 +614,6 @@
             document.documentElement.style.setProperty('--active-bg', '#6366f1');
         }
 
-        // 유틸리티
         function getDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
         function changeMonth(offset) { currentDate.setMonth(currentDate.getMonth() + offset); renderCalendar(); }
         function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
