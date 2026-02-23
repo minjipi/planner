@@ -3,7 +3,6 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -141,9 +140,14 @@
                 <button onclick="closeModal()" class="text-gray-400 hover:text-black"><i
                         class="fas fa-times"></i></button>
             </div>
-            <input type="text" id="modalTitle"
-                class="w-full text-lg font-bold text-gray-900 mb-2 border-none outline-none focus:ring-0"
-                placeholder="목표 타이틀">
+            <div class="flex items-center gap-2 mb-2">
+                <input type="text" id="modalEmoji"
+                    class="w-12 text-center text-2xl border-none outline-none focus:ring-0 bg-gray-50 rounded-lg p-1"
+                    placeholder="📍">
+                <input type="text" id="modalTitleText"
+                    class="flex-1 text-lg font-bold text-gray-900 border-none outline-none focus:ring-0"
+                    placeholder="목표 타이틀">
+            </div>
             <p id="modalTime" class="text-xs text-gray-400 mb-4 font-medium"></p>
             <div class="mb-6">
                 <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">상세 내용</label>
@@ -155,7 +159,7 @@
                 <button onclick="saveModalChanges()"
                     class="flex-1 py-3 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition">수정
                     완료</button>
-                <button id="modalDeleteBtn" class="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition"><i
+                <button id="modalDeleteBtn" onclick="deleteTaskFromModal()" class="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition"><i
                         class="fas fa-trash-alt"></i></button>
             </div>
         </div>
@@ -265,7 +269,7 @@
             class="bg-white p-8 md:p-12 transition-all duration-500 ease-in-out cursor-text border-b border-gray-50"
             style="height: 200px; overflow: hidden;">
             <div class="max-w-2xl mx-auto">
-                <input type="text" id="noteTitle" onclick="event.stopPropagation()"
+                <input type="text" id="noteTitle" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()"
                     class="w-full text-2xl font-bold border-none outline-none placeholder-gray-300 mb-4 bg-transparent"
                     placeholder="제목을 입력하세요">
                 <div class="w-full h-[1px] bg-gray-100 mb-6"></div>
@@ -283,10 +287,6 @@
 
     <section id="goalPage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl p-8 md:max-w-4xl">
         <h1 class="text-3xl font-black text-gray-900 mb-8 tracking-tighter uppercase">Add Schedule</h1>
-        <div class="mt-10">
-            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">최근 등록된 목록 (클릭하여 상세입력)</h3>
-            <div id="liveTaskList" class="space-y-3"></div>
-        </div>
 
         <div class="space-y-6">
             <div class="flex p-1 bg-gray-100 rounded-xl">
@@ -295,6 +295,7 @@
                 <button id="typeSched" onclick="setTaskType('sched')"
                     class="flex-1 py-3 rounded-lg font-bold transition text-gray-400">📅 일정</button>
             </div>
+
             <div class="flex gap-4">
                 <input type="text" id="taskEmoji"
                     class="w-16 p-4 bg-gray-50 border border-gray-100 rounded-xl text-center text-2xl" value="📍">
@@ -302,6 +303,7 @@
                     class="flex-1 p-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:border-black transition"
                     placeholder="내용을 입력하세요">
             </div>
+
             <div class="grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-[10px] font-bold text-gray-400 uppercase mb-2">Time</label>
@@ -312,6 +314,7 @@
                     <input type="date" id="dateInput" class="w-full p-4 bg-gray-50 border border-gray-100 rounded-xl">
                 </div>
             </div>
+
             <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-xs font-bold text-gray-500 uppercase">매주 반복 (Weekly Repeat)</span>
@@ -333,14 +336,17 @@
                     <div class="day-badge" onclick="toggleDay(6)" data-day="6">토</div>
                 </div>
             </div>
+
             <button onclick="addTask()"
                 class="w-full py-5 bg-black text-white font-bold rounded-2xl hover:bg-gray-800 transition shadow-xl text-lg">기록하기</button>
+
+            <button onclick="showPage('main')"
+                class="w-full py-4 text-gray-400 font-bold text-sm uppercase tracking-widest">Cancel</button>
+
             <div class="mt-10">
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">최근 등록된 목록 (클릭하여 상세입력)</h3>
                 <div id="liveTaskList" class="space-y-3"></div>
             </div>
-            <button onclick="showPage('main')"
-                class="w-full text-gray-400 font-bold text-sm uppercase tracking-widest">Cancel</button>
         </div>
     </section>
 
@@ -383,6 +389,9 @@
         let taskType = 'goal';
         let selectedRepeatDays = [];
         let editingNoteId = null;
+        // 전역 변수로 현재 수정 중인 인덱스 관리
+        let currentEditDate = null;
+        let currentEditIdx = null;
 
         const today = new Date();
         let currentDate = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -416,6 +425,7 @@
             document.getElementById(page + 'Page').classList.remove('hidden');
             if (page === 'main') renderCalendar();
             if (page === 'note') renderNotes();
+            if (page === 'goal') renderLiveTaskList();
             toggleSidebar(false);
         }
 
@@ -556,7 +566,7 @@
                 tasks[key].push(createTaskObj());
             }
             localStorage.setItem('myTasks', JSON.stringify(tasks));
-            renderLiveTaskList(); // 등록 즉시 아래 목록 갱신
+            renderLiveTaskList();
             document.getElementById('taskInput').value = ""; // 입력창 초기화
             alert("목표가 저장되었습니다.");
         }
@@ -572,6 +582,68 @@
             tasks[dateKey].splice(index, 1);
             localStorage.setItem('myTasks', JSON.stringify(tasks));
             updateTaskDisplay(); renderCalendar();
+        }
+
+        function formatDoc(command) {
+            document.execCommand(command, false, null);
+        }
+
+        function expandEditor(event) {
+            const container = document.getElementById('editorContainer');
+            container.style.height = '400px';
+            container.style.overflow = 'auto';
+            document.getElementById('noteInput').focus();
+        }
+
+        function resetEditor() {
+            document.getElementById('noteTitle').value = '';
+            document.getElementById('noteInput').innerHTML = '';
+            editingNoteId = null;
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('saveNoteBtn').innerText = '발행';
+            const container = document.getElementById('editorContainer');
+            container.style.height = '200px';
+            container.style.overflow = 'hidden';
+        }
+
+        function saveNote() {
+            const title = document.getElementById('noteTitle').value.trim();
+            const content = document.getElementById('noteInput').innerHTML.trim();
+            if (!title && !content) return alert("제목 또는 내용을 입력해주세요.");
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+
+            if (editingNoteId !== null) {
+                const idx = notes.findIndex(n => n.id === editingNoteId);
+                if (idx !== -1) {
+                    notes[idx].title = title || '제목 없음';
+                    notes[idx].content = content;
+                    notes[idx].date = dateStr;
+                }
+            } else {
+                notes.unshift({
+                    id: Date.now(),
+                    title: title || '제목 없음',
+                    content,
+                    date: dateStr
+                });
+            }
+
+            localStorage.setItem('myNotes', JSON.stringify(notes));
+            resetEditor();
+            renderNotes();
+        }
+
+        function loadNote(id) {
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+            document.getElementById('noteTitle').value = note.title;
+            document.getElementById('noteInput').innerHTML = note.content;
+            editingNoteId = id;
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            document.getElementById('saveNoteBtn').innerText = '수정';
+            expandEditor();
         }
 
         function renderNotes() {
@@ -629,83 +701,139 @@
 
         function getDateKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
         function changeMonth(offset) { currentDate.setMonth(currentDate.getMonth() + offset); renderCalendar(); }
-        function handleDragOver(e) { e.preventDefault(); }
-        function handleDrop(e) { e.preventDefault(); processImage(e.dataTransfer.files[0]); }
+        function isEmoji(str) {
+            const emojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)$/u;
+            return emojiRegex.test(str);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const emojiInput = document.getElementById('modalEmoji');
+            emojiInput.addEventListener('input', () => {
+                const val = emojiInput.value;
+                if (val && !isEmoji(val)) {
+                    const chars = [...val];
+                    const lastEmoji = chars.reverse().find(c => isEmoji(c));
+                    emojiInput.value = lastEmoji || '';
+                }
+            });
+        });
+
+        function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+        function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+        function handleDrop(e) { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); processImage(e.dataTransfer.files[0]); }
 
         let currentEditingKey = null; // 현재 수정 중인 데이터 포인터
 
-        // 1. 등록 페이지 하단 실시간 목록 (클릭 시 상세입력 펼쳐짐)
         function renderLiveTaskList() {
-            const list = document.getElementById('liveTaskList');
-            if (!list) return;
-            list.innerHTML = '';
+            const liveList = document.getElementById('liveTaskList');
+            if (!liveList) return;
 
-            // 최신순으로 정렬하여 표시
-            Object.keys(tasks).sort().reverse().slice(0, 5).forEach(dateKey => {
-                tasks[dateKey].forEach((task, idx) => {
-                    const div = document.createElement('div');
-                    div.className = "bg-gray-50 rounded-2xl p-4 border border-gray-100";
-                    div.innerHTML = `
-                <div class="flex justify-between items-center cursor-pointer" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                    <div>
-                        <p class="text-sm font-bold text-gray-900">${task.title}</p>
-                        <p class="text-[9px] text-gray-400">${dateKey}</p>
-                    </div>
-                    <i class="fas fa-chevron-down text-gray-300 text-xs"></i>
-                </div>
-                <div class="hidden mt-3 pt-3 border-t border-gray-200">
-                    <textarea onchange="updateDetailDirect('${dateKey}', ${idx}, this.value)" class="w-full p-3 bg-white border border-gray-100 rounded-xl text-xs h-20" placeholder="관련 내용을 입력하세요">${task.detail || ''}</textarea>
-                </div>
-            `;
-                    list.appendChild(div);
+            // 1. 모든 날짜의 태스크를 하나의 배열로 수집
+            let allTasks = [];
+            Object.keys(tasks).forEach(date => {
+                tasks[date].forEach((task, index) => {
+                    allTasks.push({ ...task, date, index });
                 });
             });
+
+            // 2. 제목과 시간이 같은 일정은 하나만 남기기 (중복 제거)
+            const uniqueTasks = [];
+            const seen = new Set();
+
+            // 최신 등록순으로 보여주기 위해 배열을 뒤집어서 처리
+            allTasks.reverse().forEach(task => {
+                const identifier = `${task.title}-${task.time}-${task.type}`;
+                if (!seen.has(identifier)) {
+                    seen.add(identifier);
+                    uniqueTasks.push(task);
+                }
+            });
+
+            // 3. 화면 렌더링 (상위 5개만 노출하거나 전체 노출)
+            liveList.innerHTML = uniqueTasks.slice(0, 5).map(task => `
+        <div onclick="openModal('${task.date}', ${task.index})" 
+             class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between cursor-pointer hover:bg-gray-50 transition">
+            <div class="flex items-center space-x-3">
+                <span class="text-lg">${task.title.split(' ')[0]}</span>
+                <div>
+                    <p class="text-sm font-bold text-gray-900">${task.title.split(' ').slice(1).join(' ')}</p>
+                    <p class="text-[10px] text-gray-400 font-medium">${task.time}</p>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right text-gray-300 text-xs"></i>
+        </div>
+    `).join('');
+
+            if (uniqueTasks.length === 0) {
+                liveList.innerHTML = '<p class="text-center text-gray-300 text-xs py-4">최근 등록된 일정이 없습니다.</p>';
+            }
         }
 
         function updateDetailDirect(dateKey, index, val) {
-            tasks[dateKey][index].detail = val;
-            localStorage.setItem('myTasks', JSON.stringify(tasks));
+            if (tasks[dateKey] && tasks[dateKey][index]) {
+                tasks[dateKey][index].detail = val;
+                localStorage.setItem('myTasks', JSON.stringify(tasks));
+
+                // 메인 화면 리스트가 띄워져 있다면 함께 갱신
+                if (!document.getElementById('mainPage').classList.contains('hidden')) {
+                    updateTaskDisplay();
+                }
+            }
         }
 
         // 2. 메인 화면 팝업 모달 제어
-        function openModal(dateKey, index) {
-            const task = tasks[dateKey][index];
-            currentEditingKey = { dateKey, index };
+        function openModal(dateKey, idx) {
+            const task = tasks[dateKey][idx];
+            currentEditDate = dateKey;
+            currentEditIdx = idx;
 
-            document.getElementById('modalTitle').value = task.title;
-            document.getElementById('modalType').innerText = task.type;
-            document.getElementById('modalTime').innerText = `${dateKey} | ${task.time}`;
+            const parts = task.title.split(' ');
+            document.getElementById('modalEmoji').value = parts[0] || '';
+            document.getElementById('modalTitleText').value = parts.slice(1).join(' ');
             document.getElementById('modalDetail').value = task.detail || "";
-
-            document.getElementById('modalDeleteBtn').onclick = () => {
-                deleteTask(dateKey, index);
-                closeModal();
-            };
+            document.getElementById('modalTime').innerText = task.time;
+            document.getElementById('modalType').innerText = task.type;
 
             document.getElementById('taskModal').classList.remove('hidden');
         }
 
-        function closeModal() {
-            document.getElementById('taskModal').classList.add('hidden');
-        }
-
-        function saveModalChanges() {
-            if (!currentEditingKey) return;
-            const { dateKey, index } = currentEditingKey;
-
-            tasks[dateKey][index].title = document.getElementById('modalTitle').value;
-            tasks[dateKey][index].detail = document.getElementById('modalDetail').value;
-
+        function deleteTaskFromModal() {
+            if (currentEditDate === null || currentEditIdx === null) return;
+            if (!confirm("목표를 삭제 하시겠습니까?")) return;
+            tasks[currentEditDate].splice(currentEditIdx, 1);
             localStorage.setItem('myTasks', JSON.stringify(tasks));
             updateTaskDisplay();
+            renderCalendar();
+            renderLiveTaskList();
             closeModal();
         }
 
-        // 기존 showPage 함수 수정 (페이지 바뀔 때마다 실시간 리스트 갱신)
-        const originalShowPage = showPage;
-        showPage = function (page) {
-            originalShowPage(page);
-            if (page === 'goal') renderLiveTaskList();
+        function closeModal() {
+            document.getElementById('taskModal').classList.add('hidden');
+            currentEditDate = null;
+            currentEditIdx = null;
+        }
+
+        function saveModalChanges() {
+            if (currentEditDate === null || currentEditIdx === null) return;
+
+            // 1. 데이터 업데이트
+            const emoji = document.getElementById('modalEmoji').value.trim();
+            const titleText = document.getElementById('modalTitleText').value.trim();
+            const newDetail = document.getElementById('modalDetail').value;
+
+            tasks[currentEditDate][currentEditIdx].title = `${emoji} ${titleText}`;
+            tasks[currentEditDate][currentEditIdx].detail = newDetail;
+
+            // 2. LocalStorage 저장
+            localStorage.setItem('myTasks', JSON.stringify(tasks));
+
+            // 3. 화면 즉시 갱신 (새로고침 없이)
+            updateTaskDisplay(); // 우측 리스트 갱신
+            renderCalendar();    // 캘린더 점(dot) 상태 등 갱신
+            renderLiveTaskList(); // 최근 등록 목록 갱신
+
+            closeModal();
         }
 
         if ('serviceWorker' in navigator) {
