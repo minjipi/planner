@@ -12,6 +12,7 @@
 
     <title>My Plan</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -126,6 +127,68 @@
         .note-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        #noteViewContent img {
+            max-width: 100%;
+            border-radius: 0;
+            margin: 8px 0;
+        }
+
+        #noteInput img,
+        .note-card img {
+            max-width: 100%;
+            cursor: pointer;
+            border-radius: 0;
+            margin: 8px 0;
+        }
+
+        #noteInput img.img-selected {
+            outline: 3px solid var(--active-bg);
+            outline-offset: 2px;
+        }
+
+        .img-resize-popup {
+            position: absolute;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .img-resize-popup input {
+            width: 70px;
+            padding: 4px 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .img-resize-popup input:focus {
+            border-color: #6366f1;
+        }
+
+        .img-resize-popup button {
+            padding: 4px 12px;
+            background: black;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #noteInput.drag-highlight {
+            background: var(--card-bg);
+            outline: 2px dashed var(--active-bg);
+            outline-offset: -2px;
         }
     </style>
 </head>
@@ -249,6 +312,7 @@
     </main>
 
     <section id="notePage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col md:max-w-4xl">
+        <input type="file" id="noteImageInput" accept="image/*,.heic,.heif" class="hidden">
         <div
             class="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center space-x-4 overflow-x-auto no-scrollbar sticky top-0 z-10">
             <div class="flex items-center space-x-4 border-r border-gray-200 pr-4 text-gray-500 text-sm">
@@ -257,13 +321,22 @@
                         class="fas fa-underline"></i></button>
                 <button onclick="formatDoc('insertUnorderedList')" class="hover:text-black p-1"><i
                         class="fas fa-list-ul"></i></button>
+                <button onclick="document.getElementById('noteImageInput').click()" class="hover:text-black p-1"><i
+                        class="fas fa-image"></i></button>
+            </div>
+            <div class="flex items-center space-x-4 border-r border-gray-200 pr-4 text-gray-500 text-sm">
+                <button onclick="formatDoc('justifyLeft')" class="hover:text-black p-1"><i class="fas fa-align-left"></i></button>
+                <button onclick="formatDoc('justifyCenter')" class="hover:text-black p-1"><i class="fas fa-align-center"></i></button>
+                <button onclick="formatDoc('justifyRight')" class="hover:text-black p-1"><i class="fas fa-align-right"></i></button>
             </div>
             <div class="flex-grow"></div>
             <div id="editorActions" class="flex items-center space-x-2">
+                <button id="deleteNoteBtn" onclick="deleteNote()"
+                    class="hidden text-red-400 hover:text-red-600 px-3 py-1.5 text-sm font-medium transition">삭제</button>
                 <button id="cancelEditBtn" onclick="resetEditor()"
                     class="hidden text-gray-400 hover:text-gray-600 px-3 py-1.5 text-sm font-medium transition">취소</button>
                 <button id="saveNoteBtn" onclick="saveNote()"
-                    class="bg-[#03C75A] text-white px-4 py-1.5 rounded text-sm font-bold hover:bg-[#02b351] transition">발행</button>
+                    class="text-white px-4 py-1.5 rounded text-sm font-bold transition" style="background-color: var(--active-bg);">발행</button>
             </div>
         </div>
         <div id="editorContainer" onclick="expandEditor(event)"
@@ -284,6 +357,27 @@
             <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center"><i
                     class="fas fa-list-ul mr-2"></i>Saved Notes</h3>
             <div id="noteList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+    </section>
+
+    <!-- 메모 상세 보기 페이지 -->
+    <section id="noteViewPage" class="hidden max-w-md mx-auto bg-white min-h-screen shadow-2xl flex flex-col md:max-w-4xl">
+        <div class="w-full bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
+            <button onclick="closeNoteView()" class="text-gray-500 hover:text-black transition flex items-center gap-2 text-sm font-medium">
+                <i class="fas fa-arrow-left"></i> 목록
+            </button>
+            <span id="noteViewDate" class="text-[10px] font-bold text-gray-400 uppercase"></span>
+            <div class="flex items-center gap-2">
+                <button onclick="editFromView()" class="text-sm font-bold px-4 py-1.5 rounded transition text-white" style="background-color: var(--active-bg);">수정</button>
+                <button onclick="deleteFromView()" class="text-red-400 hover:text-red-600 p-1.5 transition"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        </div>
+        <div class="flex-grow overflow-y-auto px-8 py-8 md:px-16">
+            <div class="max-w-2xl mx-auto">
+                <h2 id="noteViewTitle" class="text-2xl font-black text-gray-900 mb-4"></h2>
+                <div class="w-full h-[1px] bg-gray-100 mb-6"></div>
+                <div id="noteViewContent" class="text-base leading-relaxed text-gray-800"></div>
+            </div>
         </div>
     </section>
 
@@ -422,7 +516,7 @@
         function applyTitle(text) { document.getElementById('headerTitle').innerText = text; }
 
         function showPage(page) {
-            const ids = ['mainPage', 'goalPage', 'settingsPage', 'notePage'];
+            const ids = ['mainPage', 'goalPage', 'settingsPage', 'notePage', 'noteViewPage'];
             ids.forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(page + 'Page').classList.remove('hidden');
             if (page === 'main') renderCalendar();
@@ -590,6 +684,135 @@
             document.execCommand(command, false, null);
         }
 
+        // --- 이미지 첨부 기능 ---
+        function insertImageToEditor(file) {
+            const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif';
+            if (isHeic) {
+                heic2any({ blob: file, toType: 'image/jpeg', quality: 0.85 }).then(blob => {
+                    readAndInsertImage(blob);
+                }).catch(err => {
+                    console.error('HEIC 변환 실패:', err);
+                    alert('HEIC 이미지 변환에 실패했습니다.');
+                });
+            } else {
+                readAndInsertImage(file);
+            }
+        }
+
+        function readAndInsertImage(blob) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.maxWidth = '100%';
+                img.style.cursor = 'pointer';
+                img.style.borderRadius = '0';
+                const noteInput = document.getElementById('noteInput');
+                noteInput.focus();
+                noteInput.appendChild(img);
+                // 이미지 뒤에 빈 줄 추가
+                const br = document.createElement('br');
+                noteInput.appendChild(br);
+            };
+            reader.readAsDataURL(blob);
+        }
+
+        // 파일 선택으로 이미지 삽입
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('noteImageInput').addEventListener('change', function () {
+                if (this.files && this.files[0]) {
+                    insertImageToEditor(this.files[0]);
+                    this.value = '';
+                }
+            });
+
+            // 드래그 앤 드롭
+            const noteInput = document.getElementById('noteInput');
+            noteInput.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                noteInput.classList.add('drag-highlight');
+            });
+            noteInput.addEventListener('dragleave', () => {
+                noteInput.classList.remove('drag-highlight');
+            });
+            noteInput.addEventListener('drop', (e) => {
+                e.preventDefault();
+                noteInput.classList.remove('drag-highlight');
+                const files = e.dataTransfer.files;
+                if (files && files[0] && files[0].type.startsWith('image/') || /\.(heic|heif)$/i.test(files[0]?.name)) {
+                    insertImageToEditor(files[0]);
+                }
+            });
+
+            // 이미지 클릭 → 크기 조절 팝업
+            noteInput.addEventListener('click', (e) => {
+                if (e.target.tagName === 'IMG') {
+                    e.stopPropagation();
+                    showImageResizePopup(e.target);
+                }
+            });
+
+            // 외부 클릭 시 팝업 닫기
+            document.addEventListener('click', (e) => {
+                const popup = document.querySelector('.img-resize-popup');
+                if (popup && !popup.contains(e.target) && e.target.tagName !== 'IMG') {
+                    popup.remove();
+                    document.querySelectorAll('#noteInput img.img-selected').forEach(img => img.classList.remove('img-selected'));
+                }
+            });
+        });
+
+        let currentResizeImg = null;
+
+        function showImageResizePopup(img) {
+            // 기존 팝업 제거
+            document.querySelectorAll('.img-resize-popup').forEach(p => p.remove());
+            document.querySelectorAll('#noteInput img.img-selected').forEach(i => i.classList.remove('img-selected'));
+
+            img.classList.add('img-selected');
+            currentResizeImg = img;
+
+            const popup = document.createElement('div');
+            popup.className = 'img-resize-popup';
+
+            const label = document.createElement('span');
+            label.textContent = '너비';
+            label.style.fontSize = '12px';
+            label.style.fontWeight = 'bold';
+            label.style.color = '#6b7280';
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = img.width || img.naturalWidth;
+            input.min = 50;
+
+            const btn = document.createElement('button');
+            btn.textContent = '적용';
+            btn.onclick = () => {
+                const val = parseInt(input.value);
+                if (val && val >= 50) {
+                    currentResizeImg.style.width = val + 'px';
+                    currentResizeImg.removeAttribute('width');
+                }
+                popup.remove();
+                img.classList.remove('img-selected');
+            };
+
+            popup.appendChild(label);
+            popup.appendChild(input);
+            popup.appendChild(btn);
+
+            // 위치: 이미지 위
+            const rect = img.getBoundingClientRect();
+            const container = document.getElementById('editorContainer');
+            const containerRect = container.getBoundingClientRect();
+            popup.style.left = (rect.left - containerRect.left) + 'px';
+            popup.style.top = (rect.top - containerRect.top - 44) + 'px';
+
+            container.style.position = 'relative';
+            container.appendChild(popup);
+        }
+
         function expandEditor(event) {
             const container = document.getElementById('editorContainer');
             container.style.height = '400px';
@@ -602,6 +825,7 @@
             document.getElementById('noteInput').innerHTML = '';
             editingNoteId = null;
             document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('deleteNoteBtn').classList.add('hidden');
             document.getElementById('saveNoteBtn').innerText = '발행';
             const container = document.getElementById('editorContainer');
             container.style.height = '200px';
@@ -644,15 +868,58 @@
             document.getElementById('noteInput').innerHTML = note.content;
             editingNoteId = id;
             document.getElementById('cancelEditBtn').classList.remove('hidden');
+            document.getElementById('deleteNoteBtn').classList.remove('hidden');
             document.getElementById('saveNoteBtn').innerText = '수정';
             expandEditor();
+        }
+
+        function deleteNote() {
+            if (editingNoteId === null) return;
+            if (!confirm('이 메모를 삭제하시겠습니까?')) return;
+            notes = notes.filter(n => n.id !== editingNoteId);
+            localStorage.setItem('myNotes', JSON.stringify(notes));
+            resetEditor();
+            renderNotes();
+        }
+
+        let viewingNoteId = null;
+
+        function openNoteView(id) {
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+            viewingNoteId = id;
+            document.getElementById('noteViewDate').innerText = note.date;
+            document.getElementById('noteViewTitle').innerText = note.title;
+            document.getElementById('noteViewContent').innerHTML = note.content;
+            showPage('noteView');
+        }
+
+        function closeNoteView() {
+            viewingNoteId = null;
+            showPage('note');
+        }
+
+        function editFromView() {
+            const id = viewingNoteId;
+            viewingNoteId = null;
+            showPage('note');
+            loadNote(id);
+        }
+
+        function deleteFromView() {
+            if (viewingNoteId === null) return;
+            if (!confirm('이 메모를 삭제하시겠습니까?')) return;
+            notes = notes.filter(n => n.id !== viewingNoteId);
+            localStorage.setItem('myNotes', JSON.stringify(notes));
+            viewingNoteId = null;
+            showPage('note');
         }
 
         function renderNotes() {
             const list = document.getElementById('noteList');
             if (!list) return;
             list.innerHTML = notes.map(n => `
-                <div onclick="loadNote(${n.id})" class="note-card p-6 bg-white rounded-2xl border border-gray-100 shadow-sm relative group">
+                <div onclick="openNoteView(${n.id})" class="note-card p-6 bg-white border border-gray-100 shadow-sm relative group">
                     <span class="text-[10px] font-bold text-gray-300 uppercase block mb-2">${n.date}</span>
                     <h4 class="font-black text-gray-900 mb-2 truncate">${n.title}</h4>
                     <div class="text-xs text-gray-500 line-clamp-3">${n.content}</div>
